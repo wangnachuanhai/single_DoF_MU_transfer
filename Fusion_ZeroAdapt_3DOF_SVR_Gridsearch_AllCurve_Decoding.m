@@ -9,7 +9,7 @@
 %      4. Non-commanded DOFs are NOT treated as zero.
 %      5. Original commanded-only results table is preserved.
 %      6. Additional All-DOF and Non-commanded DOF metrics are saved.
-%      7. [新增] 训练完成的 MUST 和 RMS 模型已保存至本地.
+%      7. [New] Trained MUST and RMS models are now saved locally.
 % =========================================================================
 %% 1. Configuration & Setup
 clear; clc; close all;
@@ -207,7 +207,7 @@ for d = 1:3
 end
 
 % =========================================================================
-% [新增] 保存训练好的 SVR 模型
+% [New] Save trained SVR models
 % =========================================================================
 model_save_file = fullfile(config.paths.results, 'Trained_Fusion_SVR_Models.mat');
 fprintf('\n  -> Saving trained SVR models to %s...\n', model_save_file);
@@ -354,35 +354,35 @@ function [best_mdl, best_params, min_cv_nRMSE] = train_svr_cv_grid(X, Y, file_ma
     % 1. Parameter Space Definition
     C_grid = [0.1, 1, 10, 100, 1000];
     
-    % 【核心修复】：基于目标变量 Y 的标准差动态生成 Eps_grid
-    % 典型的 Eps 应该是目标变量波动的 1% 到 15% 之间
+    % [Core fix]: dynamically generate Eps_grid based on the standard deviation of target variable Y
+    % Typical Eps should be between 1% and 15% of target-variable fluctuation
     std_Y = std(Y); 
-    if std_Y < 1e-3, std_Y = 1; end % 应对全 0 标签的防崩溃保护
+    if std_Y < 1e-3, std_Y = 1; end % Crash-protection fallback for all-zero labels
     Eps_grid = [0.01, 0.05, 0.1, 0.15, 0.2] * std_Y; 
     
     gamma_multipliers = [0.01, 0.1, 1, 10, 100];
     % Convert gamma mult to KernelScale (sigma) mult: sigma ~ 1/sqrt(gamma)
     sigma_multipliers = 1 ./ sqrt(gamma_multipliers); 
     
-    % 【核心修复】：使用严谨的 Median Heuristic 替代特征维度平方根
-    % 为避免样本量过大导致 pdist 内存溢出（OOM），采用固定随机种子的快速子采样
-    rng(42); % 固定种子保证可复现
-    max_samples = min(2500, size(X, 1)); % 限制最大采样数以控制内存和速度
+    % [Core fix]: use a rigorous Median Heuristic instead of the square root of feature dimension
+    % To avoid pdist out-of-memory (OOM) with large sample sizes, use fast subsampling with a fixed random seed
+    rng(42); % Fixed seed for reproducibility
+    max_samples = min(2500, size(X, 1)); % Limit maximum sample count to control memory and speed
     idx_sub = randperm(size(X, 1), max_samples);
     X_sub = X(idx_sub, :);
     
-    % 重要：由于 SVR 启用了 'Standardize', true，我们必须在计算距离前对子样本进行 Z-score 标准化
+    % Important: because SVR uses 'Standardize', true, we must Z-score normalize the subsamples before computing distances
     X_sub_z = (X_sub - mean(X_sub, 1)) ./ (std(X_sub, 1) + 1e-8); 
     
-    % 计算配对欧氏距离的中位数作为基准核尺度
+    % Use the median pairwise Euclidean distance as the baseline kernel scale
     sigma0 = median(pdist(X_sub_z)); 
     
-    % 极端情况保护：如果输入特征全为 0（方差为 0），sigma0 可能为 0 或 NaN
+    % Extreme-case protection: if input features are all zeros (variance = 0), sigma0 may be 0 or NaN
     if sigma0 == 0 || isnan(sigma0)
         sigma0 = 1; 
     end
     
-    % 以真实空间距离中位数为基准，向两侧扩展 5 个数量级
+    % Expand by 5 orders of magnitude on both sides, centered on the median distance in real space
     sigma_grid = sigma0 .* sigma_multipliers;
     
     % 2. Trial-level partition (avoids overlapping window leakage)
@@ -518,11 +518,11 @@ end
 function spikes = apply_mu_model(emg_struct, model, config)
     if ~isfield(model, 'C_matrix1'), spikes = []; return; end
     
-    % 【修复处】：增加转置 ' ，使其回到 [channels, samples] 格式供 SimEMGProcessing 扩展
+    % [Fix]: add transpose ' to restore [channels, samples] format for SimEMGProcessing expansion
     [emg_ex, ~] = SimEMGProcessing(emg_struct.extensor, 'SNR', 'Inf', 'R', config.decomp.ica_extension_rep, 'WhitenFlag', 'Off');
     [emg_fl, ~] = SimEMGProcessing(emg_struct.flexor, 'SNR', 'Inf', 'R', config.decomp.ica_extension_rep, 'WhitenFlag', 'Off');
     
-    % 此时 emg_ex 是 [channels*R, samples]，转置后相乘完美匹配
+    % At this point emg_ex is [channels*R, samples]; after transposition, dimensions multiply correctly
     MU1 = (emg_ex' * model.W_whiten1) * model.B1;
     MU2 = (emg_fl' * model.W_whiten2) * model.B2;
     

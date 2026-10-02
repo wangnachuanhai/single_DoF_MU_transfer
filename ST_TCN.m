@@ -20,7 +20,7 @@ config.paths.results = fullfile(config.paths.main, 'Results', 'Final_Fusion_Anal
 config.meta_file = 'File correspondence.xlsx';
 
 % --- Visualization Settings ---
-config.plot_train_debug = false; % 关闭以免深度学习训练时弹窗过多
+config.plot_train_debug = false; % Disable to avoid too many pop-up windows during deep-learning training
 config.paths.train_plots = fullfile(config.paths.results, 'Training_Visual_Checks');
 if config.plot_train_debug && ~exist(config.paths.train_plots, 'dir')
     mkdir(config.paths.train_plots);
@@ -140,11 +140,11 @@ end
 %       PHASE 2: BUILD AND TRAIN ST-TCN NETWORKS
 % =========================================================================
 fprintf('\n>>> PHASE 2: Training Deep Learning Sequence Networks <<<\n');
-rng('default'); % 保证结果可复现
+rng('default'); % Ensure reproducible results
 
 num_MUs = size(XTrain_must{1}, 1);
 num_RMS = size(XTrain_rms{1}, 1);
-num_DOFs = 3; % 同时预测3个自由度
+num_DOFs = 3; % Predict three degrees of freedom simultaneously
 
 % --- 1. MUST Network Architecture (ST-TCN) ---
 fprintf('  -> Building MUST DL Network (Cross-MU + Causal TCN)...\n');
@@ -199,7 +199,7 @@ layers_rms = [
 options = trainingOptions('adam', ...
     'MaxEpochs', 100, ...
     'MiniBatchSize', 4, ...
-    'SequenceLength', 'longest', ... % 自动对齐不同文件长度
+    'SequenceLength', 'longest', ... % Automatically align different file lengths
     'Shuffle', 'every-epoch', ...
     'GradientThreshold', 1, ...
     'InitialLearnRate', 0.005, ...
@@ -207,7 +207,7 @@ options = trainingOptions('adam', ...
     'LearnRateDropPeriod', 30, ...
     'LearnRateDropFactor', 0.2, ...
     'Verbose', true, ...
-    'Plots', 'none'); % 若在本地带UI界面运行，可改回 'training-progress'
+    'Plots', 'none'); % If running locally with a UI, this can be switched back to 'training-progress'
 
 % --- 4. Train Networks ---
 fprintf('     [1/2] Training MUST TCN Network...\n');
@@ -221,7 +221,7 @@ net_rms = trainNetwork(XTrain_rms, YTrain, layers_rms, options);
 % =========================================================================
 fprintf('\n>>> PHASE 3: Comparative Testing on Continuous Trajectories <<<\n');
 
-% [日志表初始化不变，略过注释以省篇幅...]
+% [Log-table initialization is unchanged; comments omitted here for brevity...]
 results_log = {'Folder', 'File', 'DOF', ...
                'MUST_Corr', 'MUST_nRMSE', 'MUST_R2', ...
                'RMS_Corr', 'RMS_nRMSE', 'RMS_R2'};

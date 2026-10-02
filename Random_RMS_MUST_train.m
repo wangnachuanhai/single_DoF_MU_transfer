@@ -76,9 +76,9 @@ for group_idx = 1:length(allFilesByGroups)
     file_list = allFilesByGroups{group_idx};
     current_group_name = group_names{group_idx};
     numTrials = length(file_list);
-    % 用于保存当前 group 下所有训练模型及性能
-    group_results = []; % 保存性能
-    model_storage = struct(); % 保存模型本身（MUST & RMS）
+    % Used to store all trained models and their performance in the current group
+    group_results = []; % Store performance
+    model_storage = struct(); % Store the model objects themselves (MUST & RMS)
     for cv_fold = 1:numTrials
         trainTrial_idx = cv_fold;
         testTrials_indices = setdiff(1:numTrials, trainTrial_idx);
@@ -106,7 +106,7 @@ for group_idx = 1:length(allFilesByGroups)
             continue;
         end
         
-        % 存储该训练文件的模型
+        % Store the model for this training file
         model_storage.(extractBefore(train_file,'.xlsx')).must = trained_model_must;
         model_storage.(extractBefore(train_file,'.xlsx')).rms = trained_model_rms;
         % --- Testing on all other files ---
@@ -137,7 +137,7 @@ for group_idx = 1:length(allFilesByGroups)
                        perf_rms.correlation, perf_rms.Rsq, perf_rms.nRMSE};
             results_log(end+1, :) = new_row;
             
-            % 保存单次结果到 group_results
+            % Save this single-run result into group_results
             group_results = [group_results; {train_file, test_file, ...
                                              perf_must.correlation, perf_must.Rsq, perf_must.nRMSE, ...
                                              perf_rms.correlation, perf_rms.Rsq, perf_rms.nRMSE}];
@@ -161,13 +161,13 @@ for group_idx = 1:length(allFilesByGroups)
         end
     end
     % ---------------------------------------------------------------------
-    % After all folds in this group: 计算每个训练模型的平均测试效果，保存最优模型
+    % After all folds in this group: compute the average test performance of each training model and save the best model
     % ---------------------------------------------------------------------
     fprintf('\nSelecting best-performing models for group: %s\n', current_group_name);
     if isempty(group_results), continue; end
     group_table = cell2table(group_results, ...
         'VariableNames', {'TrainFile','TestFile','CC_MUST','R2_MUST','nRMSE_MUST','CC_RMS','R2_RMS','nRMSE_RMS'});
-    % 计算每个训练文件在不同测试集上的平均性能
+    % Compute the average performance of each training file across different test sets
     train_files_unique = unique(group_table.TrainFile);
     summary_data = [];
     for i = 1:length(train_files_unique)
@@ -179,22 +179,22 @@ for group_idx = 1:length(allFilesByGroups)
     end
     summary_table = cell2table(summary_data, ...
         'VariableNames', {'TrainFile','MeanCC_MUST','MeanCC_RMS'});
-    % 找出每个自由度下CC最高的模型（假设自由度数量 = trained_model_must.num_dof）
+    % Find the model with the highest CC (assuming the number of DOFs = trained_model_must.num_dof)
     [~, best_idx_must] = max(summary_table.MeanCC_MUST);
     [~, best_idx_rms]  = max(summary_table.MeanCC_RMS);
     best_train_must = summary_table.TrainFile{best_idx_must};
     best_train_rms  = summary_table.TrainFile{best_idx_rms};
     fprintf('Best MUST model: %s (Mean CC = %.3f)\n', best_train_must, summary_table.MeanCC_MUST(best_idx_must));
     fprintf('Best RMS model : %s (Mean CC = %.3f)\n', best_train_rms,  summary_table.MeanCC_RMS(best_idx_rms));
-    % 保存最优模型
+    % Save the best model
     save_dir = fullfile(config.paths.models, current_group_name);
     if ~exist(save_dir, 'dir'), mkdir(save_dir); end
     
     fieldname = extractBefore(best_train_must, '.xlsx');  % 'trial1'
-    s = model_storage.(fieldname).must;  % 提取 scalar struct
+    s = model_storage.(fieldname).must;  % Extract scalar struct
     save(fullfile(save_dir, 'Best_MUST_model.mat'), '-struct', 's');
     fieldname = extractBefore(best_train_rms, '.xlsx');  % 'trial1'
-    s = model_storage.(fieldname).rms;  % 提取 scalar struct
+    s = model_storage.(fieldname).rms;  % Extract scalar struct
     save(fullfile(save_dir, 'Best_RMS_model.mat'), '-struct', 's');
     fprintf('Saved best models for group %s to folder: %s\n', current_group_name, save_dir);
 end
@@ -208,7 +208,7 @@ if size(results_log, 1) > 1
     detailed_table = cell2table(results_log(2:end,:), 'VariableNames', results_log(1,:));
     writetable(detailed_table, output_filename, 'Sheet', 'Combined_Detailed_Results');
     fprintf('Successfully saved detailed results to: %s\n', output_filename);
-    % --- Compute Averages by Training File (模型在不同测试集上的平均表现) ---
+    % --- Compute Averages by Training File (average model performance across different test sets) ---
     num_rows = size(detailed_table,1);
     model_summary = struct(); % temporary storage
     for i = 1:num_rows
@@ -230,7 +230,7 @@ if size(results_log, 1) > 1
     avg_table = cell(length(train_keys), 7);
     for i = 1:length(train_keys)
         train_file = train_keys{i};
-        avg_table{i,1} = train_file; % 训练数据文件名
+        avg_table{i,1} = train_file; % Training data file name
         avg_table{i,2} = mean(model_summary.(train_file).CC_MUST);
         avg_table{i,3} = mean(model_summary.(train_file).R2_MUST);
         avg_table{i,4} = mean(model_summary.(train_file).nRMSE_MUST);

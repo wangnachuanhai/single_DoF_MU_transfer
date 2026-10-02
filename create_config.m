@@ -1,5 +1,5 @@
 function config = create_config
-%% ==================== 1. 基礎配置 (所有腳本通用) ====================
+%% ==================== 1. Basic configuration (shared by all scripts) ====================
     config.emg.fs = 2000; % EMG sampling rate
     config.extensor.bad_channel_idx = [8];
     config.flexor.bad_channel_idx = [1,33];
