@@ -16,7 +16,7 @@ Firings = sum(SpikeTrain, 1);
 index1 = find(Firings >= 4 * duration_s);
 % index2 = find(Firings <= 35 * duration_s);
 % Goodindextemp = intersect(index1, index2);
-Goodindextemp=index1;
+Goodindextemp = index1;
 
 if isempty(Goodindextemp)
     Goodindex = [];
@@ -30,7 +30,7 @@ min_isi_samples = round(0.02 * Fs);
 for k = 1:length(Goodindextemp)
     mu_col = Goodindextemp(k);
     
-    % 执行 2-3 轮消抖，解决连续密集伪脉冲
+    % Perform 2-3 rounds of de-bounce to remove consecutive dense false spikes
     for pass = 1:3
         loc = find(SpikeTrain(:, mu_col) == 1);
         if length(loc) < 2
@@ -43,10 +43,10 @@ for k = 1:length(Goodindextemp)
             break;
         end
         
-        % 倒序删除冲突脉冲，保留 s1 源信号中幅值较大的峰值
+        % Remove conflicting spikes in reverse order, keeping the peak with larger amplitude in the s1 source signal
         for c = length(conflict_idx):-1:1
             l = conflict_idx(c);
-            % 正确索引：使用真实的原始列号 mu_col 提取源信号幅值
+            % Correct indexing: use the actual original column number mu_col to extract the source-signal amplitude
             peak1 = abs(s1(loc(l), mu_col));
             peak2 = abs(s1(loc(l+1), mu_col));
             
@@ -60,7 +60,7 @@ for k = 1:length(Goodindextemp)
 end
 
 %% Step 3: Duplicate MU Removal via Common Spike Index (CSI)
-% 提取筛选后的脉冲时间点
+% Extract the firing times of the filtered spikes
 FirT = cell(length(Goodindextemp), 1);
 for k = 1:length(Goodindextemp)
     mu_col = Goodindextemp(k);
@@ -81,19 +81,19 @@ while count < length(FirT)
             continue;
         end
         
-        % 比较第 count 个与第 j 个单元的公共脉冲比例
-        % MaxT=10ms：捕获时刻偏移的副本；threshold=50%：
-        %   真副本共同放电>80%，不同MU随机重合约28%（2×10ms×14Hz），阈值50%安全分隔
+        % Compare the common spike proportion between the count-th and j-th units
+        % MaxT = 10 ms: captures duplicate timing shifts; threshold = 50%:
+        %   true duplicates have >80% common firing, while different MUs only overlap randomly by ~28% (2×10 ms × 14 Hz), so a 50% threshold safely separates them
         is_duplicate = CSIndex(FirT{count}, FirT{j}, 0.010, 0.50);
         
         if is_duplicate == 1
-            surviving_mask(j) = false; % 标记为重复单元剔除
+            surviving_mask(j) = false; % Mark as a duplicate unit and remove it
         end
     end
     count = count + 1;
 end
 
-%% Step 4: 结果整理与切片输出
+%% Step 4: Results consolidation and sliced output
 surviving_sub_indices = surviving_mask;
 Goodindex = Goodindextemp(surviving_sub_indices);
 SpikeTrain_clean = SpikeTrain(:, Goodindex);
