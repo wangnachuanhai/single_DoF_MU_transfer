@@ -14,9 +14,8 @@ duration_s = Timetemp(end);
 %% Step 1: Mean Firing Rate Quality Gate (4 Hz - 35 Hz)
 Firings = sum(SpikeTrain, 1);
 index1 = find(Firings >= 4 * duration_s);
-% index2 = find(Firings <= 35 * duration_s);
-% Goodindextemp = intersect(index1, index2);
-Goodindextemp = index1;
+index2 = find(Firings <= 35 * duration_s);
+Goodindextemp = intersect(index1, index2);
 
 if isempty(Goodindextemp)
     Goodindex = [];
